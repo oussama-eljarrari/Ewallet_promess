@@ -23,8 +23,9 @@ const database = {
     ]
 }
 
-const finduserbymail = (mail, password) => {
+export  const finduserbymail = (mail, password) => {
     return database.users.find((u) => u.email === mail && u.password === password);
 }
 
-export default finduserbymail;
+
+
