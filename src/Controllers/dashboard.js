@@ -215,85 +215,98 @@ function handleTransfer(e) {
 
 } */
 
-function checkUser(numcompte, callback){
-     setTimeout(()=>{
-     const beneficiary=finduserbyaccount(numcompte);
-     if(beneficiary){
-        callback(beneficiary);
-     }
-     else{
-        callback("beneficiary not found");
-     }
-     },2000);
-}
+// ── Fonctions wrappées en Promise ──────────────────────────────────────
 
-
-function checkSolde(expediteur,amount,callback){
-  setTimeout(()=>{
-      if(expediteur.wallet.balance>amount){
-        callback("Sufficient balance");
-      }else{
-        callback("Insufficient balance");
+function checkUser(numcompte) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const beneficiary = finduserbyaccount(numcompte);
+      if (beneficiary) {
+        resolve(beneficiary);
+      } else {
+        reject(new Error("Beneficiary not found"));
       }
-  },3000)
+    }, 2000);
+  });
 }
 
-function updateSolde(expediteur,destinataire,amount,callback){
-    setTimeout(()=>{
-        expediteur.wallet.balance-=amount;
-        destinataire.wallet.balance+=amount;
-        callback("update balance done");
-  },200);
+function checkSolde(expediteur, amount) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      if (expediteur.wallet.balance > amount) {
+        resolve("Sufficient balance");
+      } else {
+        reject(new Error("Insufficient balance"));
+      }
+    }, 3000);
+  });
 }
 
-function addtransactions(expediteur,destinataire,amount,callback){
-   setTimeout(()=>{
-    // create credit transaction
- const credit={
-    id:Date.now(),
-    type:"credit",
-    amount: amount,
-    date: Date.now().toLocaleString(),
-    from: expediteur.name
- }
- //create debit transaction
-const debit={
-    id:Date.now(),
-    type:"debit",
-    amount: amount,
-    date: Date.now().toLocaleString(),
-    to: destinataire.name, 
- }
-  expediteur.wallet.transactions.push(debit);
-  destinataire.wallet.transactions.push(credit);
-   callback("transaction added successfully");
-   },3000)
+function updateSolde(expediteur, destinataire, amount) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      expediteur.wallet.balance -= amount;
+      destinataire.wallet.balance += amount;
+      resolve({ expediteur, destinataire });
+    }, 200);
+  });
 }
 
-// **************************************transfer***************************************************//
+function addTransactions(expediteur, destinataire, amount) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const now = new Date().toLocaleString();
 
-function transfer(expediteur,numcompte,amount){
-    checkUser(numcompte,(destinataire)=>{
-            console.log("Étape 1: Destinataire trouve -", destinataire.name);
-             checkSolde(expediteur,amount,(soldemessage)=>{
-                console.log(soldemessage);
-                if(soldemessage==="Sufficient balance"){
-                    updateSolde(expediteur,destinataire,amount,(updatemessage)=>{
-                        if(updatemessage==="update balance done"){
-                             addtransactions(expediteur,destinataire,amount,(addtransactionMessage)=>{
-                                       console.log(addtransactionMessage); 
-                             });
-                        }else{
-                               console.log(updatemessage);
-                        }
-                    })
-                }
-                else{
-                     console.log(soldemessage);
-                }
-             })
+      const credit = {
+        id: Date.now(),
+        type: "credit",
+        amount,
+        date: now,
+        from: expediteur.name,
+      };
+      const debit = {
+        id: Date.now(),
+        type: "debit",
+        amount,
+        date: now,
+        to: destinataire.name,
+      };
+
+      destinataire.wallet.transactions.push(credit);
+      expediteur.wallet.transactions.push(debit);
+
+      resolve("Transaction added successfully");
+    }, 3000);
+  });
+}
+
+
+
+function transfer(expediteur, numcompte, amount) {
+  let _destinataire;
+
+  checkUser(numcompte)
+    .then((destinataire) => {
+      console.log("Étape 1 : Destinataire trouvé —", destinataire.name);
+      _destinataire = destinataire;
+      return checkSolde(expediteur, amount);
     })
+    .then((message) => {
+      console.log("Étape 2 :", message);
+      return updateSolde(expediteur, _destinataire, amount);
+    })
+    .then(({ expediteur: exp, destinataire: dest }) => {
+      console.log("Étape 3 : Soldes mis à jour");
+      return addTransactions(exp, dest, amount);
+    })
+    .then((message) => {
+      console.log("Étape 4 :", message);
+    })
+    .catch((err) => {
+      console.error("Erreur lors du transfert :", err.message);
+    });
 } 
+
 
 
 function handleTransfer(e) {
