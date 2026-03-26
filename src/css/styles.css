@@ -622,6 +622,19 @@ footer {
   border-bottom: none;
 }
 
+.transaction-type {
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.transaction-type.credit {
+  color: #d32f2f;
+}
+
+.transaction-type.debit {
+  color: #2e7d32;
+}
+
 .transaction-icon {
   width: 40px;
   height: 40px;
