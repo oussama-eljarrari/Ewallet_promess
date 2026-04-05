@@ -282,6 +282,7 @@ function addTransactions(expediteur, destinataire, amount) {
       const credit = {
         id: Date.now(),
         type: "credit",
+        status: "success",
         amount,
         date: now,
         from: expediteur.name,
@@ -289,6 +290,7 @@ function addTransactions(expediteur, destinataire, amount) {
       const debit = {
         id: Date.now(),
         type: "debit",
+        status: "success",
         amount,
         date: now,
         to: destinataire.name,
@@ -317,7 +319,31 @@ function findTransferCard(expediteur, sourceCardNum) {
 
 
 
-function transfer(expediteur, numcompte, amount, sourceCardNum) {
+async function transfer(expediteur, numcompte, amount, sourceCardNum) {
+  try {
+    let _destinataire;
+    const destinataire = await checkUser(numcompte) //p0
+    console.log("Étape 1 : Destinataire trouvé —", destinataire.name);
+    _destinataire = destinataire;
+    const card = await findTransferCard(expediteur, sourceCardNum); //p2
+
+    console.log("Étape 2 : Carte source trouvée —", card.type, card.numcards);
+    await checkCardNotExpired(card); //p3
+    console.log("Étape 3 : Carte valide (non expirée)");
+    const message = await checkSolde(expediteur, amount);//p4
+    console.log("Étape 4 :", message);
+    await updateSolde(expediteur, _destinataire, amount);
+
+    console.log("Étape 5 : Soldes mis à jour");
+    const message1 = await addTransactions(expediteur, _destinataire, amount);
+    console.log("Étape 6 :", message1);
+    renderDashboard();
+  } catch (err) {
+    console.error("Erreur lors du transfert :", err.message);
+  }
+}
+
+/* function transfer(expediteur, numcompte, amount, sourceCardNum) {
   let _destinataire;
 
   return checkUser(numcompte) //p0
@@ -350,7 +376,7 @@ function transfer(expediteur, numcompte, amount, sourceCardNum) {
       console.error("Erreur lors du transfert :", err.message);
     });
 }
-
+ */
 
 
 function handleTransfer(e) {
@@ -492,7 +518,7 @@ function addRechargeFailedTransaction(sourceCardNum, amount, reason) {
 
 
 
-// ── Chaine principale ─────────────────────────────────────────────────
+/* // ── Chaine principale ─────────────────────────────────────────────────
 function recharge(sourceCardNum, amount) {
 
   return checkRechargeUser()                                // Étape 0
@@ -528,7 +554,7 @@ function recharge(sourceCardNum, amount) {
       console.error("Erreur lors de la recharge :", err.message);
       alert(err.message);
     });
-}
+} */
 
 // ── Handler du formulaire ─────────────────────────────────────────────
 function handleRecharge(e) {
@@ -538,4 +564,32 @@ function handleRecharge(e) {
   closeRecharge();
 
   recharge(sourceCardNum, amount);
+}
+
+
+
+//--------avec async await et try catch------------------//
+async function recharge(sourceCardNum, amount) {
+  try {
+    const currentUser = await checkRechargeUser();
+    console.log("Étape 0 : Utilisateur vérifié —", currentUser.name);                             // Étape 0
+    const validAmount = await validateRechargeAmount(amount);
+    console.log("Étape 1 : Montant valide —", validAmount, "MAD");           // Étape 1
+    const card = await findRechargeCard(sourceCardNum);
+    console.log("Étape 2 : Carte trouvée —", card.type, card.numcards);
+    await checkCardNotExpired(card);                     // Étape 3
+    console.log("Étape 3 : Carte valide (non expirée)");
+    await updateRechargeBalance(card, amount);           // Étape 
+    console.log("Étape 4 : Soldes mis à jour");
+    const message = await addRechargeTransaction(card, amount);          // Étape 5
+    console.log("Étape 5 :", message);
+    renderDashboard();
+    alert(message);
+    closeRecharge();
+  } catch (err) {
+    addRechargeFailedTransaction(sourceCardNum, amount, err.message);
+    renderDashboard();
+    console.error("Erreur lors de la recharge :", err.message);
+    alert(err.message);
+  };
 }
